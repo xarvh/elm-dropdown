@@ -31,6 +31,14 @@ cssRoot =
     namespace "Root"
 
 
+cssPrompt =
+    namespace "Prompt"
+
+
+cssCurrentSelection =
+    namespace "CurrentSelection"
+
+
 cssMenu =
     namespace "Menu"
 
@@ -53,8 +61,8 @@ type Config item
 
 type alias PrivateConfig item =
     { downArrow : Html (Msg item)
-    , hasClearButton : Bool
     , itemToLabel : item -> String
+    , maybeClearButton : Maybe (Html (Msg item))
     , prompt : String
     }
 
@@ -69,9 +77,9 @@ withDownArrow downArrow (Config privateConfig) =
     Config { privateConfig | downArrow = downArrow }
 
 
-withClearButton : Bool -> Config item -> Config item
-withClearButton hasClearButton (Config privateConfig) =
-    Config { privateConfig | hasClearButton = hasClearButton }
+withClearButton : Maybe (Html (Msg item)) -> Config item -> Config item
+withClearButton maybeClearButton (Config privateConfig) =
+    Config { privateConfig | maybeClearButton = maybeClearButton }
 
 
 withPrompt : String -> Config item -> Config item
@@ -90,8 +98,10 @@ withItemToLabel itemToLabel (Config privateConfig) =
 
 defaultConfig : (item -> String) -> PrivateConfig item
 defaultConfig itemToLabel =
-    { downArrow = defaultDownArrow
-    , hasClearButton = True
+    { downArrow =
+        defaultDownArrow
+        -- TODO: provide a default clear button
+    , maybeClearButton = Nothing
     , itemToLabel = itemToLabel
     , prompt = ""
     }
@@ -123,7 +133,9 @@ init =
 
 type Msg item
     = NoOp
-    | OnSelect item
+    | OnClickItem item
+    | OnClickClear
+    | OnClickDownArrow
     | OnLoseFocus
 
 
@@ -139,7 +151,13 @@ update (Config privateConfig) msg (Model isOpen) =
         NoOp ->
             ( Model isOpen, NoChange )
 
-        OnSelect item ->
+        OnClickClear ->
+            ( Model False, SelectionCleared )
+
+        OnClickDownArrow ->
+            ( Model (not isOpen), NoChange )
+
+        OnClickItem item ->
             ( Model False, ItemSelected item )
 
         OnLoseFocus ->
@@ -154,7 +172,7 @@ keyCodeToItemMsg item key =
     case key of
         -- Enter
         13 ->
-            OnSelect item
+            OnClickItem item
 
         -- ESC
         27 ->
@@ -180,19 +198,49 @@ viewItem privateConfig maybeSelectedItem item =
         div
             [ classes
             , Html.Events.on "keyup" <| Json.Decode.map (keyCodeToItemMsg item) Html.Events.keyCode
-            , Html.Events.on "blur" <| Json.Decode.succeed OnLoseFocus
-            , Html.Events.onClick (OnSelect item)
+            , Html.Events.onClick (OnClickItem item)
             ]
             [ text (privateConfig.itemToLabel item)
             ]
 
 
+viewSelection privateConfig maybeSelectedItem =
+    let
+        currentSelection =
+            case maybeSelectedItem of
+                Nothing ->
+                    span [ class cssPrompt ] [ text privateConfig.prompt ]
+
+                Just item ->
+                    span [ class cssCurrentSelection ] [ text <| privateConfig.itemToLabel item ]
+
+        clearIcon =
+            case privateConfig.maybeClearButton of
+                Just button ->
+                    span
+                        [ Html.Events.onClick OnClickClear ]
+                        [ button ]
+
+                Nothing ->
+                    span [] []
+
+        downArrow =
+            span
+                [ Html.Events.onClick OnClickDownArrow ]
+                [ privateConfig.downArrow ]
+    in
+        div
+            []
+            [ currentSelection, clearIcon, downArrow ]
+
+
 view : Config item -> Model -> List item -> Maybe item -> Html (Msg item)
 view (Config privateConfig) (Model isOpen) items maybeSelectedItem =
     div
-        [ class cssRoot ]
-        [ div [] []
-          --Trigger.view config model items selected
+        [ class cssRoot
+        , Html.Events.on "blur" <| Json.Decode.succeed OnLoseFocus
+        ]
+        [ viewSelection privateConfig maybeSelectedItem
         , div
             [ class cssMenu ]
           <|

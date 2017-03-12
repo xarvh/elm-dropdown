@@ -2,6 +2,7 @@ module Main exposing (..)
 
 import Dropdown
 import Html exposing (..)
+import Html.Attributes exposing (class)
 
 
 items =
@@ -91,11 +92,30 @@ update msg model =
 
 view model =
     div
-      []
-      [ text "LOOOL"
-      , Html.map LeftMsg <| Dropdown.view config model.leftDropdown items (Just model.leftSelection)
-      , Html.map RightMsg <| Dropdown.view config model.rightDropdown items model.rightSelection
-      ]
+        [ class "root" ]
+        [ text "LOOOL"
+        , node "style" [] [ text """
+
+          .root {
+            background-color: green;
+          }
+
+          .left .ElmDropdown-Root {
+            background-color: red;
+          }
+
+          .right .ElmDropdown-Root {
+            background-color: blue;
+          }
+
+          """ ]
+        , div
+            [ class "left" ]
+            [ Html.map LeftMsg <| Dropdown.view config model.leftDropdown items (Just model.leftSelection) ]
+        , div
+            [ class "right" ]
+            [ Html.map RightMsg <| Dropdown.view config model.rightDropdown items model.rightSelection ]
+        ]
 
 
 
