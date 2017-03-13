@@ -39,6 +39,10 @@ cssCurrentSelection =
     namespace "CurrentSelection"
 
 
+cssDownArrow =
+    namespace "DownArrow"
+
+
 cssMenu =
     namespace "Menu"
 
@@ -134,9 +138,11 @@ init =
 type Msg item
     = NoOp
     | OnClickItem item
+    | OnClickCurrentSelection
     | OnClickClear
     | OnClickDownArrow
-    | OnLoseFocus
+    | OnItemLosesFocus
+    | OnCurrentSelectionLosesFocus
 
 
 type Outcome item
@@ -151,6 +157,9 @@ update (Config privateConfig) msg (Model isOpen) =
         NoOp ->
             ( Model isOpen, NoChange )
 
+        OnClickCurrentSelection ->
+            ( Model True, NoChange )
+
         OnClickClear ->
             ( Model False, SelectionCleared )
 
@@ -160,7 +169,10 @@ update (Config privateConfig) msg (Model isOpen) =
         OnClickItem item ->
             ( Model False, ItemSelected item )
 
-        OnLoseFocus ->
+        OnItemLosesFocus ->
+            ( Model False, NoChange )
+
+        OnCurrentSelectionLosesFocus ->
             ( Model False, NoChange )
 
 
@@ -176,7 +188,7 @@ keyCodeToItemMsg item key =
 
         -- ESC
         27 ->
-            OnLoseFocus
+            OnCurrentSelectionLosesFocus
 
         _ ->
             NoOp
@@ -197,6 +209,8 @@ viewItem privateConfig maybeSelectedItem item =
     in
         div
             [ classes
+--             , Html.Attributes.tabindex -1
+              --             , Html.Events.on "blur" <| Json.Decode.succeed OnItemLosesFocus
             , Html.Events.on "keyup" <| Json.Decode.map (keyCodeToItemMsg item) Html.Events.keyCode
             , Html.Events.onClick (OnClickItem item)
             ]
@@ -206,13 +220,16 @@ viewItem privateConfig maybeSelectedItem item =
 
 viewSelection privateConfig maybeSelectedItem =
     let
+        onClick =
+            Html.Events.onClick OnClickCurrentSelection
+
         currentSelection =
             case maybeSelectedItem of
                 Nothing ->
-                    span [ class cssPrompt ] [ text privateConfig.prompt ]
+                    span [ class cssPrompt, onClick ] [ text privateConfig.prompt ]
 
                 Just item ->
-                    span [ class cssCurrentSelection ] [ text <| privateConfig.itemToLabel item ]
+                    span [ class cssCurrentSelection, onClick ] [ text <| privateConfig.itemToLabel item ]
 
         clearIcon =
             case privateConfig.maybeClearButton of
@@ -226,7 +243,9 @@ viewSelection privateConfig maybeSelectedItem =
 
         downArrow =
             span
-                [ Html.Events.onClick OnClickDownArrow ]
+                [ class cssDownArrow
+                , Html.Events.onClick OnClickDownArrow
+                ]
                 [ privateConfig.downArrow ]
     in
         div
@@ -238,7 +257,8 @@ view : Config item -> Model -> List item -> Maybe item -> Html (Msg item)
 view (Config privateConfig) (Model isOpen) items maybeSelectedItem =
     div
         [ class cssRoot
-        , Html.Events.on "blur" <| Json.Decode.succeed OnLoseFocus
+        , Html.Attributes.tabindex 0
+        , Html.Events.on "blur" <| Json.Decode.succeed OnCurrentSelectionLosesFocus
         ]
         [ viewSelection privateConfig maybeSelectedItem
         , div

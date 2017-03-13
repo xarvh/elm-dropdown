@@ -98,10 +98,15 @@ view model =
 
           .root {
             background-color: green;
+            display: flex;
           }
 
           .left .ElmDropdown-Root {
             background-color: red;
+          }
+
+          .left .ElmDropdown-DownArrow {
+            background-color: purple;
           }
 
           .right .ElmDropdown-Root {
