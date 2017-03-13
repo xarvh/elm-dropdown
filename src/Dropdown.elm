@@ -59,18 +59,25 @@ cssDropdownSelected =
 -- Config
 
 
-type Config item
-    = Config (PrivateConfig item)
-
-
-type alias PrivateConfig item =
-    { downArrow : Html (Msg item)
+type alias Config item msg =
+    { downArrow : Html msg
     , itemToLabel : item -> String
-    , maybeClearButton : Maybe (Html (Msg item))
+    , maybeClearButton : Maybe (Html msg)
     , prompt : String
+    , onPickItem : item -> msg
+    , onPickNone : msg
+    , onToggleMenu : msg
     }
 
 
+type alias State item =
+    { items : List item
+    , selection : Maybe item
+    , isOpen : Bool
+    }
+
+
+{-
 newConfig : (item -> String) -> Config item
 newConfig itemToLabel =
     Config <| defaultConfig itemToLabel
@@ -109,6 +116,7 @@ defaultConfig itemToLabel =
     , itemToLabel = itemToLabel
     , prompt = ""
     }
+-}
 
 
 defaultDownArrow : Html (Msg item)
@@ -118,62 +126,9 @@ defaultDownArrow =
 
 
 
--- Model
-
-
-type Model
-    = Model Bool
-
-
-init : Model
-init =
-    Model False
-
-
-
 -- Update
-{- TODO: it's a pain in the ass to have Msg depend on item, should just use a String -}
 
 
-type Msg item
-    = NoOp
-    | OnClickItem item
-    | OnClickCurrentSelection
-    | OnClickClear
-    | OnClickDownArrow
-    | OnItemLosesFocus
-    | OnCurrentSelectionLosesFocus
-
-
-type Outcome item
-    = NoChange
-    | SelectionCleared
-    | ItemSelected item
-
-
-update : Config item -> Msg item -> Model -> ( Model, Outcome item )
-update (Config privateConfig) msg (Model isOpen) =
-    case msg of
-        NoOp ->
-            ( Model isOpen, NoChange )
-
-        OnClickCurrentSelection ->
-            ( Model True, NoChange )
-
-        OnClickClear ->
-            ( Model False, SelectionCleared )
-
-        OnClickDownArrow ->
-            ( Model (not isOpen), NoChange )
-
-        OnClickItem item ->
-            ( Model False, ItemSelected item )
-
-        OnItemLosesFocus ->
-            ( Model False, NoChange )
-
-        OnCurrentSelectionLosesFocus ->
-            ( Model False, NoChange )
 
 
 
@@ -194,8 +149,8 @@ keyCodeToItemMsg item key =
             NoOp
 
 
-viewItem : PrivateConfig item -> Maybe item -> item -> Html (Msg item)
-viewItem privateConfig maybeSelectedItem item =
+viewItem : Config item -> Maybe item -> item -> Html (Msg item)
+viewItem config maybeSelectedItem (prevItem, item, nextItem) =
     let
         isSelected =
             -- TODO: for safety, comparison should be made using itemToLabel?
@@ -253,19 +208,43 @@ viewSelection privateConfig maybeSelectedItem =
             [ currentSelection, clearIcon, downArrow ]
 
 
-view : Config item -> Model -> List item -> Maybe item -> Html (Msg item)
-view (Config privateConfig) (Model isOpen) items maybeSelectedItem =
+
+viewMenu config state =
+  let
+      just =
+        List.map Just state.items
+
+      prevItems =
+        Nothing :: just
+
+      nextItems =
+        List.drop 1 just ++ [ Nothing ]
+
+      list =
+        List.map3 (,,) prevItems state.items nextItems
+
+      listItems =
+         List.map (viewItem config state.maybeSelectedItem) list
+  in
+      ul [ class cssMenu ] listItems
+
+
+
+
+
+
+view : Config item msg -> State item -> Html msg
+view config state =
     div
         [ class cssRoot
         , Html.Attributes.tabindex 0
         , Html.Events.on "blur" <| Json.Decode.succeed OnCurrentSelectionLosesFocus
         ]
-        [ viewSelection privateConfig maybeSelectedItem
-        , div
+        [ viewSelection config state.maybeSelectedItem
+        , ul
             [ class cssMenu ]
           <|
-            if isOpen then
-                List.map (viewItem privateConfig maybeSelectedItem) items
+            if state.isOpen then
             else
                 []
         ]

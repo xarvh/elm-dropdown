@@ -17,18 +17,23 @@ config =
     Dropdown.newConfig identity
 
 
+type DropdownId
+    = Left
+    | Right
+
+
 type alias Model =
-    { leftSelection : String
-    , leftDropdown : Dropdown.Model
+    { openDropdownId : Maybe DropdownId
+    , leftSelection : String
     , rightSelection : Maybe String
-    , rightDropdown : Dropdown.Model
     }
 
 
 type Msg
     = NoOp
-    | LeftMsg (Dropdown.Msg String)
-    | RightMsg (Dropdown.Msg String)
+    | SelectionClicked DropdownId
+    | SelectLeft (Maybe String)
+    | SelectRight (Maybe String)
 
 
 
@@ -36,10 +41,9 @@ type Msg
 
 
 init =
-    { leftSelection = "xx"
-    , leftDropdown = Dropdown.init
+    { openDropdownId = Nothing
+    , leftSelection = "cd"
     , rightSelection = Nothing
-    , rightDropdown = Dropdown.init
     }
 
 
@@ -52,38 +56,22 @@ update msg model =
         NoOp ->
             model
 
-        LeftMsg msg ->
-            let
-                ( leftDropdown, outcome ) =
-                    Dropdown.update config msg model.leftDropdown
+        SelectionClicked dropdownId ->
+            if Just dropdownId == model.openDropdownId then
+                { model | openDropdownId = Nothing }
+            else
+                { model | openDropdownId = Just dropdownId }
 
-                leftSelection =
-                    case outcome of
-                        Dropdown.ItemSelected item ->
-                            item
+        SelectLeft maybeString ->
+            case maybeString of
+                Nothing ->
+                    model
 
-                        _ ->
-                            model.leftSelection
-            in
-                { model | leftDropdown = leftDropdown, leftSelection = leftSelection }
+                Just string ->
+                    { model | leftSelection = string }
 
-        RightMsg msg ->
-            let
-                ( rightDropdown, outcome ) =
-                    Dropdown.update config msg model.rightDropdown
-
-                rightSelection =
-                    case outcome of
-                        Dropdown.ItemSelected item ->
-                            Just item
-
-                        Dropdown.SelectionCleared ->
-                            Nothing
-
-                        Dropdown.NoChange ->
-                            model.rightSelection
-            in
-                { model | rightDropdown = rightDropdown, rightSelection = rightSelection }
+        SelectRight maybeString ->
+            { model | rightSelection = maybeString }
 
 
 
